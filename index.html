@@ -259,6 +259,75 @@
         
           <section id="main" style="float:none;">
   
+    <article id="post-kubernetes v1.10.0 高可用集群部署"  class="article article-type-post" itemscope itemprop="blogPost" >
+  <div id="articleInner" class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" itemprop="name">
+      <a class="article-title" href="/2019/06/20/kubernetes v1.10.0 高可用集群部署/">kubernetes v1.10.0 高可用集群部署</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2019/06/20/kubernetes v1.10.0 高可用集群部署/" class="article-date">
+	  <time datetime="2019-06-20T13:28:14.977Z" itemprop="datePublished">2019-06-20</time>
+	</a>
+
+      
+    <a class="article-category-link" href="/categories/kubernetes及容器/">kubernetes及容器</a>
+
+      
+      
+
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p class="article-excerpt-content">
+          kubernetes v1.10.0 高可用集群部署kubernetes官方并为明确给出高可用生产集群的部署方案，经过调研，使用keepalived和haproxy可以实现高可用集群的部署。该方案也已经过实践检验，运行的还是比较稳定的。
+机器
+
+
+IP
+用途
+备注
+
+
+
+172.28.79.11
+master、etcd
+主节点
+
+
+172.28.79.12
+master、etcd、keepalived、haproxy
+主节点，同时部署keepalived、haproxy，保证master高...
+        </p>
+        <p class="article-more-link">
+          <a href="/2019/06/20/kubernetes v1.10.0 高可用集群部署/#more">Read More</a>
+        </p>
+      
+    </div>
+    <footer class="article-footer">
+      
+      
+      
+      
+
+    </footer>
+  </div>
+  
+</article>
+
+<!-- Table of Contents -->
+
+
+  
     <article id="post-hello-world"  class="article article-type-post" itemscope itemprop="blogPost" >
   <div id="articleInner" class="article-inner">
     
