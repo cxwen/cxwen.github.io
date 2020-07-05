@@ -132,7 +132,7 @@
 
 <p>现在很多项目都大量使用到CRD, 为了能有更清楚的理解,下面以<a href="https://github.com/cxwen/matrix">matrix项目</a>为例：</p>
 
-<pre><code class="language-text">[root@centos01 ~]# kubectl get crd | grep crd.cxwen.com
+<pre><code class="language-shell">[root@centos01 ~]# kubectl get crd | grep crd.cxwen.com
 dns.crd.cxwen.com                                     2020-06-30T06:21:09Z
 etcdclusters.crd.cxwen.com                            2020-06-30T06:21:09Z
 masters.crd.cxwen.com                                 2020-06-30T06:21:09Z
@@ -142,7 +142,7 @@ networkplugins.crd.cxwen.com                          2020-06-30T06:21:09Z
 
 <p>可以看到matrix定义了许多的CRD。以<code>masters.crd.cxwen.com</code>为例，来看看CRD里面到底定义了哪些东西。</p>
 
-<pre><code class="language-text">apiVersion: apiextensions.k8s.io/v1
+<pre><code class="language-yaml">apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: masters.crd.cxwen.com
@@ -265,7 +265,7 @@ spec:
 
 <p>顾名思意，<code>additional Printer Columns</code>就是额外的打印列的意思，即设置使用<code>kubectl get</code>命令去查看自定义资源时会打印哪些字段，例如：</p>
 
-<pre><code class="language-text">[root@centos01 ~]# kubectl get master
+<pre><code class="language-shell">[root@centos01 ~]# kubectl get master
 NAME         VERSION    REPLICAS   ETCD         EXPOSETYPE   EXPOSENODE         EXPOSEPORT   PHASE   AGE
 example-km   v1.15.12   1          example-ec   NodePort     [192.168.83.128]   31299        Ready   12m
 </code></pre>
@@ -284,7 +284,7 @@ example-km   v1.15.12   1          example-ec   NodePort     [192.168.83.128]   
 
 <p>type直接指定属性的类型，如<code>apiserver</code>为<code>string</code>类型：</p>
 
-<pre><code class="language-text">apiserver:
+<pre><code class="language-yaml">apiserver:
   type: string
 </code></pre>
 
@@ -294,7 +294,7 @@ example-km   v1.15.12   1          example-ec   NodePort     [192.168.83.128]   
 
 <p>type值为object, properties中描述其它属性的类型，如imageRepo属性：</p>
 
-<pre><code class="language-text">  imageRepo:
+<pre><code class="language-yaml">  imageRepo:
     type: object
     properties:
       apiserver:
@@ -359,7 +359,7 @@ example-km   v1.15.12   1          example-ec   NodePort     [192.168.83.128]   
 
 <p>接着需要在机器上安装kubebuilder, linux可以使用下面命令安装：</p>
 
-<pre><code class="language-text">wget https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.1/kubebuilder_2.3.1_linux_amd64.tar.gz
+<pre><code class="language-shell">wget https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.1/kubebuilder_2.3.1_linux_amd64.tar.gz
 tar -zxvf kubebuilder_2.3.1_linux_amd64.tar.gz
 cp kubebuilder_2.3.1_linux_amd64/bin/kubebuilder /usr/local/bin/
 </code></pre>
@@ -377,19 +377,19 @@ cp kubebuilder_2.3.1_linux_amd64/bin/kubebuilder /usr/local/bin/
 
 <p>拉取镜像 xwcheng/kubebuilder:2.3.1</p>
 
-<pre><code class="language-text">docker pull xwcheng/kubebuilder:2.3.1
+<pre><code class="language-shell">docker pull xwcheng/kubebuilder:2.3.1
 </code></pre>
 
 <p>运行容器</p>
 
-<pre><code class="language-text">docker run -d --name kubebuilder -v /go/src/github.com/cxwen/:/go/src/github.com/cxwen -e GOPATH=/go -e GOROOT=/usr/local/go xwcheng/kubebuilder:2.3.1 sh -c &quot;while true; do sleep 1000000000; done&quot;
+<pre><code class="language-shell">docker run -d --name kubebuilder -v /go/src/github.com/cxwen/:/go/src/github.com/cxwen -e GOPATH=/go -e GOROOT=/usr/local/go xwcheng/kubebuilder:2.3.1 sh -c &quot;while true; do sleep 1000000000; done&quot;
 </code></pre>
 
 <p>可以将宿主机的目录挂载到容器中。</p>
 
 <p>进入容器</p>
 
-<pre><code class="language-text">docker exec -ti kubebuilder bash
+<pre><code class="language-shell">docker exec -ti kubebuilder bash
 </code></pre>
 
 <h3 id="toc_11">构建代码框架</h3>
@@ -398,12 +398,12 @@ cp kubebuilder_2.3.1_linux_amd64/bin/kubebuilder /usr/local/bin/
 
 <p>国内因为墙的关系，最好执行 <code>export GOPROXY=https://goproxy.io</code>。</p>
 
-<pre><code class="language-text">mkdir -p crd/
+<pre><code class="language-shell">mkdir -p crd/
 cd crd/
 kubebuilder init --domain cxwen.com --license apache2 --owner &quot;cxwen&quot;
 </code></pre>
 
-<pre><code class="language-text">Writing scaffold for you to edit...
+<pre><code class="language-shell">Writing scaffold for you to edit...
 Get controller runtime:
 $ go get sigs.k8s.io/controller-runtime@v0.5.0
 go: finding sigs.k8s.io/controller-runtime v0.5.0
@@ -427,7 +427,7 @@ $ kubebuilder create api
 
 <p>生成完之后，会出现如下这些文件机目录：</p>
 
-<pre><code class="language-text">[root@centos01 ~]# tree
+<pre><code class="language-shell">[root@centos01 ~]# tree
 .
 ├── bin
 │   └── manager
@@ -474,7 +474,7 @@ $ kubebuilder create api
 
 <p>2、创建CRD</p>
 
-<pre><code class="language-text">[root@centos01 ~]# kubebuilder create api --group crd --version v1 --kind TestCrd
+<pre><code class="language-shell">[root@centos01 ~]# kubebuilder create api --group crd --version v1 --kind TestCrd
 Create Resource [y/n]
 y
 Create Controller [y/n]
@@ -492,7 +492,7 @@ go build -o bin/manager main.go
 
 <p>执行完后可以看到目录下出现api和controllers这两个新的目录。</p>
 
-<pre><code class="language-text">[root@centos01 ~]# tree api/
+<pre><code class="language-bash">[root@centos01 ~]# tree api/
 api/
 └── v1
     ├── groupversion_info.go
@@ -515,7 +515,7 @@ controllers/
 
 <p>api目录中存放的是Custom Resource的结构体。 如下所示，TestCrdSpec结构体中可以自定义yaml文件spec属性下需要的字段。TestCrdStatus结构体中可以自定义yaml文件status属性下需要的字段。</p>
 
-<pre><code class="language-golang">// TestCrdSpec defines the desired state of TestCrd
+<pre><code class="language-go">// TestCrdSpec defines the desired state of TestCrd
 type TestCrdSpec struct {
     // INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
     // Important: Run &quot;make&quot; to regenerate code after modifying this file
@@ -561,7 +561,7 @@ type TestCrd struct {
 
 <p>如果说结构体是CRD的血肉，那么controller里面的Reconcile方法就是CRD的大脑，因为CRD的所有行为，都是通过这个方法来控制的，这个方法也是我们代码实现的关键所在。每一个CRD都会在controllers目录中生成一个以<code>{CRD名称}_controller.go</code>格式命名的代码文件, Reconcile方法即在这个文件中。</p>
 
-<pre><code class="language-text">func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+<pre><code class="language-go">func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
     _ = context.Background()
     _ = r.Log.WithValues(&quot;testcrd&quot;, req.NamespacedName)
 
@@ -573,7 +573,7 @@ type TestCrd struct {
 
 <p>下面是Reconcile实现的一个模板：</p>
 
-<pre><code class="language-text">func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+<pre><code class="language-go">func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
     var err error
     ctx := context.Background() // 获取context
     log := r.Log.WithValues(&quot;master&quot;, req.NamespacedName) // 获取日志对象
@@ -627,7 +627,7 @@ type TestCrd struct {
 
 <p>在Reconcile方法前面添加, 例如：</p>
 
-<pre><code class="language-text">// +kubebuilder:rbac:groups=crd.cxwen.com,resources=testcrds,verbs=get;list;watch;create;update;patch;delete
+<pre><code class="language-go">// +kubebuilder:rbac:groups=crd.cxwen.com,resources=testcrds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=crd.cxwen.com,resources=testcrds/status,verbs=get;update;patch
 
 func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -644,7 +644,7 @@ func (r *TestCrdReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 <p>在CRD结构体前面添加，例如：</p>
 
-<pre><code class="language-text">// +kubebuilder:printcolumn:name=&quot;VERSION&quot;,type=&quot;string&quot;,JSONPath=&quot;.spec.version&quot;,description=&quot;version&quot;
+<pre><code class="language-go">// +kubebuilder:printcolumn:name=&quot;VERSION&quot;,type=&quot;string&quot;,JSONPath=&quot;.spec.version&quot;,description=&quot;version&quot;
 // +kubebuilder:printcolumn:name=&quot;REPLICAS&quot;,type=&quot;string&quot;,JSONPath=&quot;.spec.replicas&quot;,description=&quot;pod replicas&quot;
 // +kubebuilder:printcolumn:name=&quot;ETCD&quot;,type=&quot;string&quot;,JSONPath=&quot;.spec.etcdCluster&quot;,description=&quot;etcdcluster name&quot;
 // +kubebuilder:printcolumn:name=&quot;EXPOSETYPE&quot;,type=&quot;string&quot;,JSONPath=&quot;.spec.expose.method&quot;,description=&quot;expose type&quot;
@@ -688,7 +688,7 @@ type Master struct {
 
 <p>添加OwnerReference, 以deployment为例,在ObjectMeta下面添加OwnerReferences即可：</p>
 
-<pre><code class="language-text">Deployment{
+<pre><code class="language-go">Deployment{
     TypeMeta: metav1.TypeMeta{
         APIVersion: &quot;apps/v1&quot;,
         Kind:       &quot;Deployment&quot;,
@@ -727,7 +727,7 @@ type Master struct {
 
 <h3 id="toc_20">main.go</h3>
 
-<pre><code class="language-text">var (
+<pre><code class="language-go">var (
     scheme   = runtime.NewScheme()
     setupLog = ctrl.Log.WithName(&quot;setup&quot;)
 )
@@ -790,7 +790,7 @@ func main() {
 
 <p>下面是创建Manager的函数：</p>
 
-<pre><code class="language-text">// New returns a new Manager for creating Controllers.
+<pre><code class="language-go">// New returns a new Manager for creating Controllers.
 func New(config *rest.Config, options Options) (Manager, error) {
     // Initialize a rest.config if none was specified
     if config == nil {
@@ -890,7 +890,7 @@ func New(config *rest.Config, options Options) (Manager, error) {
 
 <p>cache主要就是创建了InformersMap，scheme里面的每个GVK (GroupVersionKind结构体，包含Group、Version、Kind三个字段，可以唯一确定一个资源) 都创建了对应的 Informer，通过 informersByGVK这个map来存放GVK和Informer的映射关系，每个 Informer会根据ListWatch 函数对对应的GVK进行List和Watch。我们为controller开发的Reconcile方法最终都会注册到informer的handler中，这样利用informer就可以达到监控资源的事件并触发Reconcile目的。</p>
 
-<pre><code class="language-text">// newSpecificInformersMap returns a new specificInformersMap (like
+<pre><code class="language-go">// newSpecificInformersMap returns a new specificInformersMap (like
 // the generical InformersMap, except that it doesn&#39;t implement WaitForCacheSync).
 func newSpecificInformersMap(config *rest.Config,
     scheme *runtime.Scheme,
@@ -916,7 +916,7 @@ func newSpecificInformersMap(config *rest.Config,
 
 <p>MapEntry中包含最终创建的informer对象。</p>
 
-<pre><code class="language-text">// MapEntry contains the cached data for an Informer
+<pre><code class="language-go">// MapEntry contains the cached data for an Informer
 type MapEntry struct {
     // Informer is the cached informer
     Informer cache.SharedIndexInformer
@@ -932,7 +932,7 @@ type MapEntry struct {
 
 <p>从下面的代码可以看出，读操作使用上面创建的 cache，写操作使用client直连kubernetes。</p>
 
-<pre><code class="language-text">// defaultNewClient creates the default caching client
+<pre><code class="language-go">// defaultNewClient creates the default caching client
 func defaultNewClient(cache cache.Cache, config *rest.Config, options client.Options) (client.Client, error) {
     // Create the Client for Write operations.
     c, err := client.New(config, options)
@@ -955,7 +955,7 @@ func defaultNewClient(cache cache.Cache, config *rest.Config, options client.Opt
 
 <p>在main.go中, 通过下面的代码把Manager中的client、scheme以及日志对象传递给相应的CRD对象。</p>
 
-<pre><code class="language-text">if err = (&amp;controllers.TestCrdReconciler{
+<pre><code class="language-go">if err = (&amp;controllers.TestCrdReconciler{
     Client: mgr.GetClient(),
     Log:    ctrl.Log.WithName(&quot;controllers&quot;).WithName(&quot;TestCrd&quot;),
     Scheme: mgr.GetScheme(),
@@ -965,7 +965,7 @@ func defaultNewClient(cache cache.Cache, config *rest.Config, options client.Opt
 }
 </code></pre>
 
-<pre><code class="language-text">// TestCrdReconciler reconciles a TestCrd object
+<pre><code class="language-go">// TestCrdReconciler reconciles a TestCrd object
 type TestCrdReconciler struct {
     client.Client
     Log    logr.Logger
