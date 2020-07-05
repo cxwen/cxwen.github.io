@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
   <loc>cxwen.github.io/</loc>
-  <lastmod>2020-07-05T17:37:11+08:00</lastmod>
+  <lastmod>2020-07-05T17:55:29+08:00</lastmod>
 </url>
 
 <url>
@@ -16,6 +16,10 @@
 </url>
 
 
+
+<url>
+  <loc>cxwen.github.io/kubernetes.html</loc>
+</url>
 
 
 </urlset>
