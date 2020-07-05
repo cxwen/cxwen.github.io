@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[githubBlog]]></title>
+  <title><![CDATA[cxwen blog]]></title>
   <link href="cxwen.github.io/atom.xml" rel="self"/>
   <link href="cxwen.github.io/"/>
-  <updated>2020-07-05T17:37:11+08:00</updated>
+  <updated>2020-07-05T17:55:29+08:00</updated>
   <id>cxwen.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
