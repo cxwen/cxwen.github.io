@@ -1,0 +1,968 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+    
+  kubernetes v1.10.0 高可用集群部署 - github blog
+  
+  </title>
+  
+  
+  <link href="atom.xml" rel="alternate" title="github blog" type="application/atom+xml">
+    <link rel="stylesheet" href="asset/css/foundation.min.css" />
+    <link rel="stylesheet" href="asset/css/docs.css" />
+    <script src="asset/js/vendor/modernizr.js"></script>
+    <script src="asset/js/vendor/jquery.js"></script>
+ 
+<script type="text/javascript">
+  function before_search(){
+    var searchVal = 'site:cxwen.github.io ' + document.getElementById('search_input').value;
+    document.getElementById('search_q').value = searchVal;
+    return true;
+  }
+</script>
+  </head>
+  <body class="antialiased hide-extras">
+    
+    <div class="marketing off-canvas-wrap" data-offcanvas>
+      <div class="inner-wrap">
+
+
+<nav class="top-bar docs-bar hide-for-small" data-topbar>
+
+
+  <section class="top-bar-section">
+  <div class="row">
+      <div style="position: relative;width:100%;"><div style="position: absolute; width:100%;">
+        <ul id="main-menu" class="left">
+        
+        <li id=""><a target="self" href="index.html">Home</a></li>
+        
+        <li id=""><a target="_self" href="archives.html">Archives</a></li>
+        
+        </ul>
+
+        <ul class="right" id="search-wrap">
+          <li>
+<form target="_blank" onsubmit="return before_search();" action="https://google.com/search" method="get">
+    <input type="hidden" id="search_q" name="q" value="" />
+    <input tabindex="1" type="search" id="search_input"  placeholder="Search"/>
+</form>
+</li>
+          </ul>
+      </div></div>
+  </div>
+  </section>
+
+</nav>
+
+        <nav class="tab-bar show-for-small">
+  <a href="javascript:void(0)" class="left-off-canvas-toggle menu-icon">
+    <span> &nbsp; github blog</span>
+  </a>
+</nav>
+
+<aside class="left-off-canvas-menu">
+      <ul class="off-canvas-list">
+        
+        <li><a target="self" href="index.html">Home</a></li>
+        
+        <li><a target="_self" href="archives.html">Archives</a></li>
+        
+
+    <li><label>Categories</label></li>
+
+         
+
+      </ul>
+    </aside>
+
+<a class="exit-off-canvas" href="#"></a>
+
+
+        <section id="main-content" role="main" class="scroll-container">
+        
+       
+
+ <script type="text/javascript">
+  $(function(){
+    $('#menu_item_index').addClass('is_active');
+  });
+</script>
+<div class="row">
+  <div class="large-8 medium-8 columns">
+      <div class="markdown-body article-wrap">
+       <div class="article">
+          
+          <h1>kubernetes v1.10.0 高可用集群部署</h1>
+     
+        <div class="read-more clearfix">
+          <span class="date">2020/07/05</span>
+
+          
+           
+         
+          <span class="comments">
+            
+
+            
+          </span>
+
+        </div>
+      </div><!-- article -->
+
+      <div class="article-content">
+      <p>kubernetes官方并为明确给出高可用生产集群的部署方案，经过调研，使用keepalived和haproxy可以实现高可用集群的部署。该方案也已经过实践检验，运行的还是比较稳定的。</p>
+
+<h2 id="toc_0">机器</h2>
+
+<table>
+<thead>
+<tr>
+<th>IP</th>
+<th>用途</th>
+<th>备注</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>172.28.79.11</td>
+<td>master、etcd</td>
+<td>主节点</td>
+</tr>
+<tr>
+<td>172.28.79.12</td>
+<td>master、etcd、keepalived、haproxy</td>
+<td>主节点，同时部署keepalived、haproxy，保证master高可用</td>
+</tr>
+<tr>
+<td>172.28.79.13</td>
+<td>master、etcd、keepalived、haproxy</td>
+<td>主节点，同时部署keepalived、haproxy，保证master高可用</td>
+</tr>
+<tr>
+<td>172.28.79.14</td>
+<td>node、etcd</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.15</td>
+<td>node、etcd</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.16</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.17</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.18</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.19</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.20</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.21</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.22</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.23</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.24</td>
+<td>node、harbor</td>
+<td>业务节点</td>
+</tr>
+<tr>
+<td>172.28.79.25</td>
+<td>node</td>
+<td>业务节点</td>
+</tr>
+</tbody>
+</table>
+
+<h1 id="toc_1">机器基础配置信息</h1>
+
+<h2 id="toc_2">版本信息</h2>
+
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>版本</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>系统版本</td>
+<td>CentOS Linux release 7.4.1708 (Core)</td>
+</tr>
+<tr>
+<td>内核版本</td>
+<td>4.14.49</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="toc_3">ntpd时间同步配置</h2>
+
+<p>/etc/ntp.conf</p>
+
+<pre><code class="language-shell">#perfer 表示『优先使用』的服务器
+server ntp.aliyun.com prefer
+#下面没有prefer参数，做为备用NTP时钟上层服务器地址，我这里设置的是公网，语音云则可以设置其他两地NTP IP。
+server cn.ntp.org.cn
+#我们每一个system clock的频率都有小小的误差,这个就是为什么机器运行一段时间后会不精确. NTP会自动来监测我们时钟的误差值并予以调整.但问题是这是一个冗长的过程,所以它会把记录下来的误差先写入driftfile.这样即使你重新开机以后之前的计算结果也就不会丢了
+driftfile /var/lib/ntp/ntp.drift
+statistics loopstats peerstats clockstats
+filegen loopstats file loopstats type day enable
+filegen peerstats file peerstats type day enable
+filegen clockstats file clockstats type day enable
+# By default, exchange time with everybody, but don&#39;t allow configuration.
+restrict -4 default kod notrap nomodify nopeer noquery
+restrict -6 default kod notrap nomodify nopeer noquery
+# Local users may interrogate the ntp server more closely.
+restrict 127.0.0.1
+restrict ::1
+</code></pre>
+
+<h1 id="toc_4">kubernetes组件配置信息</h1>
+
+<h2 id="toc_5">组件版本</h2>
+
+<table>
+<thead>
+<tr>
+<th>组件名</th>
+<th>版本</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>docker</td>
+<td>Docker version 1.12.6, build 78d1802</td>
+</tr>
+<tr>
+<td>kubernetes</td>
+<td>v1.10.0</td>
+</tr>
+<tr>
+<td>etcd</td>
+<td>3.1.12</td>
+</tr>
+<tr>
+<td>calico</td>
+<td>v3.0.4</td>
+</tr>
+<tr>
+<td>harbor</td>
+<td>v1.2.0</td>
+</tr>
+<tr>
+<td>keepalived</td>
+<td>v1.3.5</td>
+</tr>
+<tr>
+<td>haproxy</td>
+<td>1.7</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="toc_6">配置</h2>
+
+<p>组件配置</p>
+
+<h3 id="toc_7">docker</h3>
+
+<p>配置文件：/usr/lib/systemd/system/docker.service</p>
+
+<pre><code class="language-shell">[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network.target
+
+[Service]
+Type=notify
+# the default is not to use systemd for cgroups because the delegate issues still
+# exists and systemd currently does not support the cgroup feature set required
+# for containers run by docker
+ExecStart=/usr/bin/dockerd -H 0.0.0.0:2375 -H unix:///var/run/docker.sock --registry-mirror https://registry.docker-cn.com --insecure-registry 172.16.59.153 --insecure-registry hub.cxwen.cn --insecure-registry k8s.gcr.io --insecure-registry quay.io --default-ulimit core=0:0 --live-restore
+ExecReload=/bin/kill -s HUP $MAINPID
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+# in the kernel. We recommend using cgroups to do container-local accounting.
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+# Uncomment TasksMax if your systemd version supports it.
+# Only systemd 226 and above support this version.
+#TasksMax=infinity
+TimeoutStartSec=0
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+Delegate=yes
+# kill only the docker process, not all processes in the cgroup
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+
+<pre><code class="language-shell">--registry-mirror：指定 docker pull 时使用的注册服务器镜像地址,指定为https://registry.docker-cn.com可以加快docker hub中的镜像拉取速度
+--insecure-registry：配置非安全的docker镜像注册服务器
+--default-ulimit：配置容器默认的ulimit选项
+--live-restore：开启此选项，当dockerd服务出现问题时，容器照样运行，服务恢复后，容器也可以再被服务抓到并可管理
+</code></pre>
+
+<h3 id="toc_8">kubernetes</h3>
+
+<h4 id="toc_9">etcd</h4>
+
+<p>以172.28.79.11节点为例，其它节点类似：</p>
+
+<pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    component: etcd
+    tier: control-plane
+  name: etcd-172.28.79.11
+  namespace: kube-system
+spec:
+  containers:
+  - command:
+    - etcd
+    - --name=infra0
+    - --initial-advertise-peer-urls=http://172.28.79.11:2380
+    - --listen-peer-urls=http://172.28.79.11:2380
+    - --listen-client-urls=http://172.28.79.11:2379,http://127.0.0.1:2379
+    - --advertise-client-urls=http://172.28.79.11:2379
+    - --data-dir=/var/lib/etcd
+    - --initial-cluster-token=etcd-cluster-1
+    - --initial-cluster=infra0=http://172.28.79.11:2380,infra1=http://172.28.79.12:2380,infra2=http://172.28.79.13:2380,infra3=http://172.28.79.14:2380,infra4=http://172.28.79.15:2380
+    - --initial-cluster-state=new
+    image: k8s.gcr.io/etcd-amd64:3.1.12
+    livenessProbe:
+      httpGet:
+        host: 127.0.0.1
+        path: /health
+        port: 2379
+        scheme: HTTP
+      failureThreshold: 8
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
+    name: etcd
+    volumeMounts:
+    - name: etcd-data
+      mountPath: /var/lib/etcd
+  hostNetwork: true
+  volumes:
+  - hostPath:
+      path: /var/lib/etcd
+      type: DirectoryOrCreate
+    name: etcd-data
+</code></pre>
+
+<h3 id="toc_10">kubernetes系统组件</h3>
+
+<h4 id="toc_11">kubeadm init 启动k8s集群config.yaml配置</h4>
+
+<pre><code class="language-yaml">apiVersion: kubeadm.k8s.io/v1alpha1
+kind: MasterConfiguration
+networking:
+  podSubnet: 192.168.0.0/16
+api:
+  advertiseAddress: 172.28.79.11
+etcd:
+  endpoints:
+  - http://172.28.79.11:2379 
+  - http://172.28.79.12:2379
+  - http://172.28.79.13:2379
+  - http://172.28.79.14:2379
+  - http://172.28.79.15:2379
+
+apiServerCertSANs:
+  - 172.28.79.11
+  - master01.bja.paas
+  - 172.28.79.12
+  - master02.bja.paas
+  - 172.28.79.13
+  - master03.bja.paas
+  - 172.28.79.10
+  
+  - 127.0.0.1
+token:
+kubernetesVersion: v1.10.0
+apiServerExtraArgs:
+  endpoint-reconciler-type: lease
+  bind-address: 172.28.79.11
+  runtime-config: storage.k8s.io/v1alpha1=true
+  admission-control: NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
+featureGates:
+  CoreDNS: true
+</code></pre>
+
+<h4 id="toc_12">kubelet配置</h4>
+
+<p>/etc/systemd/system/kubelet.service.d/10-kubeadm.conf</p>
+
+<pre><code class="language-shell">[Service]
+Environment=&quot;KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf&quot;
+Environment=&quot;KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true&quot;
+Environment=&quot;KUBELET_NETWORK_ARGS=--network-plugin=cni --cni-conf-dir=/etc/cni/net.d --cni-bin-dir=/opt/cni/bin&quot;
+Environment=&quot;KUBELET_DNS_ARGS=--cluster-dns=10.96.0.10 --cluster-domain=cluster.local&quot;
+Environment=&quot;KUBELET_AUTHZ_ARGS=--authorization-mode=Webhook --client-ca-file=/etc/kubernetes/pki/ca.crt&quot;
+Environment=&quot;KUBELET_CADVISOR_ARGS=--cadvisor-port=0&quot;
+Environment=&quot;KUBELET_CGROUP_ARGS=--cgroup-driver=cgroupfs&quot;
+Environment=&quot;KUBELET_CERTIFICATE_ARGS=--rotate-certificates=true --cert-dir=/var/lib/kubelet/pki --eviction-hard=memory.available&lt;5%,nodefs.available&lt;5%,imagefs.available&lt;5%&quot;
+ExecStart=
+ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_SYSTEM_PODS_ARGS $KUBELET_NETWORK_ARGS $KUBELET_DNS_ARGS $KUBELET_AUTHZ_ARGS $KUBELET_CADVISOR_ARGS $KUBELET_CGROUP_ARGS $KUBELET_CERTIFICATE_ARGS $KUBELET_EXTRA_ARGS
+</code></pre>
+
+<h3 id="toc_13">keepalived</h3>
+
+<p>keepalived采取直接在物理机部署，使用yum命令进行安装，并设置开机自启。</p>
+
+<p>yum install -y keepalived<br/><br/>
+systemctl enable keeplalived  </p>
+
+<h4 id="toc_14">配置keepalived配置文件</h4>
+
+<p>启动配置文件：&quot;/etc/keepalived/keepalived.conf&quot;。keepalived的MASTER和BACKUP配置有部分差异</p>
+
+<p>MASTER</p>
+
+<pre><code class="language-shell">! Configuration File for keepalived
+
+global_defs {
+    notification_email {
+      root@localhost
+    }
+    router_id master02
+}
+
+vrrp_script chk_haproxy {
+    script &quot;/etc/keepalived/haproxy_check.sh&quot;
+    interval 3
+    weight -20
+}
+
+vrrp_instance VI_1 {
+    state MASTER    # BACKUP节点改成BACKUP
+    interface bond1
+    virtual_router_id 151
+    priority 110    # BACKUP节点改成100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+       172.28.79.10 # k8s使用的VIP
+       172.28.79.9  # 数据库组件使用的VIP
+    }
+    track_script {
+       chk_haproxy
+    }
+}
+</code></pre>
+
+<p>haproxy检查脚本：/etc/keepalived/haproxy_check.sh</p>
+
+<pre><code class="language-shell">#!/bin/bash
+
+if [ `ps -C haproxy --no-header |wc -l` -eq 0 ] ; then
+    docker restart k8s-haproxy
+    sleep 2
+    if [ `ps -C haproxy --no-header |wc -l` -eq 0 ] ; then
+        service keepalived stop
+    fi
+fi
+</code></pre>
+
+<h3 id="toc_15">haproxy</h3>
+
+<p>haproxy以容器的形式启动，启动命令如下：</p>
+
+<pre><code class="language-shell">docker run -d --net host --restart always --name k8s-haproxy -v /etc/haproxy:/usr/local/etc/haproxy:ro hub.xfyun.cn/k8s/haproxy:1.7
+</code></pre>
+
+<p>haproxy配置文件：/etc/haproxy/haproxy.cfg</p>
+
+<pre><code class="language-shell">global
+  daemon
+  log 127.0.0.1 local0
+  log 127.0.0.1 local1 notice
+  maxconn 4096
+
+defaults
+  log               global
+  retries           3
+  maxconn           2000
+  timeout connect   5s
+  timeout client    50s
+  timeout server    50s
+
+frontend k8s
+  bind *:6444
+  mode tcp
+  default_backend k8s-backend
+
+backend k8s-backend
+  balance roundrobin
+  mode tcp
+  server k8s-1 172.28.79.11:6443 check
+  server k8s-2 172.28.79.12:6443 check
+  server k8s-3 172.28.79.13:6443 check
+</code></pre>
+
+<h2 id="toc_16">部署完成后操作</h2>
+
+<h3 id="toc_17">修改kube-proxy configmap</h3>
+
+<pre><code class="language-shell">kubectl edit configmap kube-proxy -n kube-system
+</code></pre>
+
+<pre><code class="language-yaml">.....
+kubeconfig.conf: |-
+  apiVersion: v1
+  kind: Config
+  clusters:
+  - cluster:
+      certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      server: https://172.28.79.10:6444  # 更改此行ip为vip,改成172.28.79.10
+    name: default
+  contexts:
+  - context:
+      cluster: default
+      namespace: default
+      user: default
+    name: default
+  current-context: default
+  users:
+  - name: default
+    user:
+      tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+......
+</code></pre>
+
+<p>执行如下命令让kube-proxy组件重新启动</p>
+
+<pre><code class="language-shell">kubectl get pod -n kube-system | grep kube-proxy | awk &#39;{print $1}&#39; | xargs kubectl delete pod -n kube-system
+</code></pre>
+
+<h3 id="toc_18">修改所有node节点kubelet.conf</h3>
+
+<pre><code class="language-shell">/etc/kubernetes/kubelet.conf
+</code></pre>
+
+<pre><code class="language-yaml">apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNE1EVXhPREF4TXpNME1Gb1hEVEk0TURVeE5UQXhNek0wTUZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTGJoCmw1TDRaNHFiWTJ3MmY5TFlEb0ZqVlhhcHRhYklkQmZmTS9zMTJaWFd1NU5LYWlPR09ub3RxK1gwM0VJb3Z4VEkKUGh5NzBqY294VGlLUTk5ZkFsUS82a2Vhc0x5MDNGZXJvYkhmaldUenBkZE5mWVNEZStMazlMV0hIZ0phOXVUQQpDU3kyay9sZGo3VWQ0Sk9pMi9lcGhVTUNNMUNlbmdPeWZDNUl0SUpFZzJmMk95cTE5U0JBeW1zYzFTalg5Q0F6CnNyMlhiTm9hK1lVS2Flek1QSldvYlNxdEg0czQ1TkluYytMREJFTkk4VGVITktybENsamdIeUorUjU1V2pCTW8KeSs3Y1BxL2cwTkxmSU4xRjJVbkFFa3RTSmVYUFBSaGlQUUhJcGRBU0xySXhVcE9HNlN3Yk51bmRGdGsxaUJiUgpUSW9md2UyT0VhZkhySmV5OHJrQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFLME1mOFM5VjUyaG9VZ3JYcGQyK09rOHF2Ny8KR3hpWnRFelFISW9RdWRLLzJ2ZGJHbXdnem10V3hFNHRYRWQyUnlXTTZZR1VQSmNpMmszY1Z6QkpSaGcvWFB2UQppRVBpUDk5ZkdiM0kxd0QyanlURWVaZVd1ekdSRDk5ait3bStmcE9wQzB2ZU1LN3hzM1VURjRFOFlhWGcwNmdDCjBXTkFNdTRxQmZaSUlKSEVDVDhLUlB5TEN5Zlgvbm84Q25WTndaM3pCbGZaQmFONGZaOWw0UUdGMVd4dlc0OHkKYmpvRDhqUVJnL1kwYUVUMWMrSEhpWTNmNDF0dG9kMWJoSWR3c1NDNUhhRjJQSVAvZ2dCSnZ2Uzh2V1cwcVRDegpDV2EzcVJ0bVB0MHdtcEZic2RPWmdsWkl6aWduYTdaaDFWMDJVM0VFZ2kwYjNGZWR5OW5MRUZaMGJZbz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    server: https://172.28.79.10:6444   # 此处改为VIP加haproxy监听端口6444
+  name: default-cluster
+contexts:
+- context:
+    cluster: default-cluster
+    namespace: default
+    user: default-auth
+  name: default-context
+current-context: default-context
+kind: Config
+preferences: {}
+users:
+- name: default-auth
+  user:
+    client-certificate: /var/lib/kubelet/pki/kubelet-client.crt
+    client-key: /var/lib/kubelet/pki/kubelet-client.key
+</code></pre>
+
+<h2 id="toc_19">部署前注意事项</h2>
+
+<h3 id="toc_20">1. 确保所有节点时间同步</h3>
+
+<p>使用ntpdate命令进行时间同步，若无私网时间服务器，可以使用阿里云时间服务器。</p>
+
+<pre><code class="language-shell">ntpdate ntp1.aliyun.com
+</code></pre>
+
+<h3 id="toc_21">2. 确保所有节点ip转发功能打开</h3>
+
+<pre><code class="language-shell">net.ipv4.ip_forward = 1
+</code></pre>
+
+
+    
+
+      </div>
+
+      <div class="row">
+        <div class="large-6 columns">
+        <p class="text-left" style="padding:15px 0px;">
+      
+        </p>
+        </div>
+        <div class="large-6 columns">
+      <p class="text-right" style="padding:15px 0px;">
+      
+          <a  href="15939383708739.html" 
+          title="Next Post: kubernetes CRD 开发入门指南">kubernetes CRD 开发入门指南 &raquo;</a>
+      
+      </p>
+        </div>
+      </div>
+      <div class="comments-wrap">
+        <div class="share-comments">
+          
+
+          
+
+          
+        </div>
+      </div>
+    </div><!-- article-wrap -->
+  </div><!-- large 8 -->
+
+
+
+
+ <div class="large-4 medium-4 columns">
+  <div class="hide-for-small">
+    <div id="sidebar" class="sidebar">
+          <div id="site-info" class="site-info">
+            
+                <h1>github blog</h1>
+                <div class="site-des">分享个人技术经验、心得体会：kubernetes, docker, 容器，虚拟化，网络等</div>
+                <div class="social">
+
+
+
+
+
+
+
+
+
+
+
+  <a target="_blank" class="rss" href="atom.xml" title="RSS">RSS</a>
+                
+              	 </div>
+          	</div>
+
+             
+
+              <div id="site-categories" class="side-item ">
+                <div class="side-header">
+                  <h2>Categories</h2>
+                </div>
+                <div class="side-content">
+
+      	<p class="cat-list">
+         
+        </p>
+
+
+                </div>
+              </div>
+
+              <div id="site-categories" class="side-item">
+                <div class="side-header">
+                  <h2>Recent Posts</h2>
+                </div>
+                <div class="side-content">
+                <ul class="posts-list">
+	      
+		      
+			      <li class="post">
+			        <a href="15939392688573.html">kubernetes v1.10.0 高可用集群部署</a>
+			      </li>
+		     
+		  
+		      
+			      <li class="post">
+			        <a href="15939383708739.html">kubernetes CRD 开发入门指南</a>
+			      </li>
+		     
+		   
+		  		</ul>
+                </div>
+              </div>
+        </div><!-- sidebar -->
+      </div><!-- hide for small -->
+</div><!-- large 4 -->
+
+</div><!-- row -->
+
+ <div class="page-bottom clearfix">
+  <div class="row">
+   <p class="copyright">Copyright &copy; 2015
+Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a>,&nbsp; 
+Theme used <a target="_blank" href="http://github.com">GitHub CSS</a>.</p>
+  </div>
+</div>
+
+        </section>
+      </div>
+    </div>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+figure{margin: 0;padding: 0;}
+figcaption{text-align:center;}
+
+/* PrismJS 1.14.0
+ http://prismjs.com/download.html#themes=prism&languages=markup+css+clike+javascript */
+/**
+ * prism.js default theme for JavaScript, CSS and HTML
+ * Based on dabblet (http://dabblet.com)
+ * @author Lea Verou
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+    color: black;
+    background: none;
+    text-shadow: 0 1px white;
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    text-align: left;
+    white-space: pre;
+    word-spacing: normal;
+    word-break: normal;
+    word-wrap: normal;
+    line-height: 1.5;
+    
+    -moz-tab-size: 4;
+    -o-tab-size: 4;
+    tab-size: 4;
+    
+    -webkit-hyphens: none;
+    -moz-hyphens: none;
+    -ms-hyphens: none;
+    hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+    text-shadow: none;
+    background:#b3d4fc;
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+    text-shadow: none;
+    background: #b3d4fc;
+}
+
+@media print {
+    code[class*="language-"],
+    pre[class*="language-"] {
+        text-shadow: none;
+    }
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+    padding: 1em;
+    margin: .5em 0;
+    overflow: auto;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+    background: #F7F7F7;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+    padding: .1em;
+    border-radius: .3em;
+    white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+    color: slategray;
+}
+
+.token.punctuation {
+    color: #999;
+}
+
+.namespace {
+    opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+    color: #905;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+    color: #690;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+    color: #9a6e3a;
+    background: hsla(0, 0%, 100%, .5);
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+    color: #07a;
+}
+
+.token.function,
+.token.class-name {
+    color: #DD4A68;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+    color: #e90;
+}
+
+.token.important,
+.token.bold {
+    font-weight: bold;
+}
+.token.italic {
+    font-style: italic;
+}
+
+.token.entity {
+    cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+  
+    
+
+    <script src="asset/js/foundation.min.js"></script>
+    <script>
+      $(document).foundation();
+      function fixSidebarHeight(){
+        var w1 = $('.markdown-body').height();
+          var w2 = $('#sidebar').height();
+          if (w1 > w2) { $('#sidebar').height(w1); };
+      }
+      $(function(){
+        fixSidebarHeight();
+      })
+      $(window).load(function(){
+          fixSidebarHeight();
+      });
+     
+    </script>
+
+
+
+  </body>
+</html>
