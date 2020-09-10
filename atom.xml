@@ -4,13 +4,572 @@
   <title><![CDATA[cxwen blog]]></title>
   <link href="cxwen.github.io/atom.xml" rel="self"/>
   <link href="cxwen.github.io/"/>
-  <updated>2020-07-05T18:17:33+08:00</updated>
+  <updated>2020-09-10T09:46:18+08:00</updated>
   <id>cxwen.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
     
   </author>
   <generator uri="http://www.mweb.im/">MWeb</generator>
+  
+  <entry>
+    <title type="html"><![CDATA[centos 7 使用 ceph-deploy 快速部署 ceph 集群]]></title>
+    <link href="cxwen.github.io/15996491202131.html"/>
+    <updated>2020-09-09T18:58:40+08:00</updated>
+    <id>cxwen.github.io/15996491202131.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">一、安装 CEPH 部署工具</h2>
+
+<p>把 Ceph 仓库添加到 ceph-deploy 管理节点，然后安装 ceph-deploy 。</p>
+
+<h4 id="toc_1">1、配置yum源</h4>
+
+<pre><code class="language-shell">sudo yum install -y yum-utils &amp;&amp; sudo yum-config-manager --add-repo https://dl.fedoraproject.org/pub/epel/7/x86_64/ &amp;&amp; sudo yum install --nogpgcheck -y epel-release &amp;&amp; sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7 &amp;&amp; sudo rm /etc/yum.repos.d/dl.fedoraproject.org*
+
+echo &#39;[ceph-noarch]
+name=Ceph noarch packages
+baseurl=http://download.ceph.com/rpm-nautilus/el7/noarch
+enabled=1
+gpgcheck=1
+type=rpm-md
+gpgkey=https://download.ceph.com/keys/release.asc&#39; &gt; /etc/yum.repos.d/ceph.repo
+
+echo &#39;[Ceph]
+name=Ceph packages for $basearch
+baseurl=http://mirrors.aliyun.com/ceph/rpm-infernalis/el7/$basearch
+enabled=1
+gpgcheck=1
+type=rpm-md
+gpgkey=http://mirrors.aliyun.com/ceph/keys/release.asc
+priority=1
+
+[Ceph-noarch]
+name=Ceph noarch packages
+baseurl=http://mirrors.aliyun.com/ceph/rpm-infernalis/el7/noarch
+enabled=1
+gpgcheck=1
+type=rpm-md
+gpgkey=http://mirrors.aliyun.com/ceph/keys/release.asc
+priority=1
+
+[ceph-source]
+name=Ceph source packages
+baseurl=http://mirrors.aliyun.com/ceph/rpm-infernalis/el7/SRPMS
+enabled=1
+gpgcheck=1
+type=rpm-md
+gpgkey=http://mirrors.aliyun.com/ceph/keys/release.asc
+priority=1&#39; &gt; /etc/yum.repos.d/ceph.repo
+
+yum clean all
+yum makecache
+</code></pre>
+
+<h4 id="toc_2">2、安装ceph-deploy</h4>
+
+<pre><code class="language-shell"> yum install -y ceph-deploy
+ ```
+ 
+## 二、CEPH 节点环境预检及配置
+
+你的管理节点必须能够通过 SSH 无密码地访问各 Ceph 节点。如果 ceph-deploy 以某个普通用户登录，那么这个用户必须有无密码使用 sudo 的权限。
+
+#### 1、安装 NTP
+
+建议在所有 Ceph 节点上安装 NTP 服务（特别是 Ceph Monitor 节点），以免因时钟漂移导致故障。
+
+#### 2、安装 SSH 服务器
+
+``` shell
+yum install -y openssh-server
+</code></pre>
+
+<p>确保所有 Ceph 节点上的 SSH 服务器都在运行。</p>
+
+<h4 id="toc_3">3、创建部署 CEPH 的用户</h4>
+
+<p>ceph-deploy 工具必须以普通用户登录 Ceph 节点，且此用户拥有无密码使用 sudo 的权限，因为它需要在安装软件及配置文件的过程中，不必输入密码。</p>
+
+<p>在各 Ceph 节点创建新用户。确保各 Ceph 节点上新创建的用户都有 sudo 权限。</p>
+
+<pre><code class="language-shell">username=ceph-deploy
+sudo useradd -d /home/${username} -m ${username}
+sudo passwd ${username}
+echo &quot;${username} ALL = (root) NOPASSWD:ALL&quot; | sudo tee /etc/sudoers.d/${username}
+chmod 0440 /etc/sudoers.d/${username}
+</code></pre>
+
+<p>允许无密码 SSH 登录<br/>
+正因为 ceph-deploy 不支持输入密码，你必须在管理节点上生成 SSH 密钥并把其公钥分发到各 Ceph 节点。 ceph-deploy 会尝试给初始 monitors 生成 SSH 密钥对。</p>
+
+<p>生成 SSH 密钥对，但不要用 sudo 或 root 用户。提示 “Enter passphrase” 时，直接回车，口令即为空：</p>
+
+<pre><code class="language-text">ssh-keygen
+
+Generating public/private key pair.
+Enter file in which to save the key (/ceph-admin/.ssh/id_rsa):
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /ceph-admin/.ssh/id_rsa.
+Your public key has been saved in /ceph-admin/.ssh/id_rsa.pub.
+</code></pre>
+
+<p>把公钥拷贝到各 Ceph 节点，把下列命令中的 {username} 替换成前面创建部署 Ceph 的用户里的用户名。</p>
+
+<p>配置hosts, 配置之前修改每台机器的主机名，例如：</p>
+
+<pre><code class="language-text">hostnamectl set-hostname node1
+</code></pre>
+
+<pre><code class="language-text">echo &#39;172.66.1.12 node1
+172.66.1.13 node2
+172.66.1.14 node3
+&#39; &gt;&gt; /etc/hosts
+</code></pre>
+
+<pre><code class="language-text">username=ceph-deploy
+ssh-copy-id {username}@node1
+ssh-copy-id {username}@node2
+ssh-copy-id {username}@node3
+</code></pre>
+
+<p>（推荐做法）修改 ceph-deploy 管理节点上的 ~/.ssh/config 文件，这样 ceph-deploy 就能用你所建的用户名登录 Ceph 节点了，而无需每次执行 ceph-deploy 都要指定 --username {username} 。这样做同时也简化了 ssh 和 scp 的用法。把 {username} 替换成你创建的用户名。</p>
+
+<pre><code class="language-text">Host node1
+   Hostname node1
+   User ceph-deploy
+Host node2
+   Hostname node2
+   User ceph-deploy
+Host node3
+   Hostname node3
+   User ceph-deploy
+</code></pre>
+
+<p>同时，部署前，确保firewalld, selinux关闭。</p>
+
+<h4 id="toc_4">4、优先级/首选项</h4>
+
+<p>确保你的包管理器安装了优先级/首选项包且已启用。在 CentOS 上你也许得安装 EPEL ，在 RHEL 上你也许得启用可选软件库。</p>
+
+<pre><code class="language-text">sudo yum install -y yum-plugin-priorities
+</code></pre>
+
+<h2 id="toc_5">三、集群安装</h2>
+
+<p><a href="http://docs.ceph.org.cn/start/quick-ceph-deploy/">http://docs.ceph.org.cn/start/quick-ceph-deploy/</a></p>
+
+<h4 id="toc_6">1、创建集群</h4>
+
+<pre><code class="language-text">ceph-deploy new node1
+</code></pre>
+
+<h4 id="toc_7">2、安装ceph</h4>
+
+<pre><code class="language-text">ceph-deploy install node1
+</code></pre>
+
+<pre><code class="language-text">ceph-deploy mon create-initial
+</code></pre>
+
+<p>执行</p>
+
+<pre><code class="language-text">ceph-deploy osd prepare node2:/dev/vdc
+ceph-deploy osd prepare node2:/dev/vdc node3:/dev/vdc
+</code></pre>
+
+<p>报错</p>
+
+<pre><code class="language-text">usage: ceph-deploy osd [-h] {list,create} ...
+ceph-deploy osd: error: argument subcommand: invalid choice: &#39;prepare&#39; (choose from &#39;list&#39;, &#39;create&#39;)
+</code></pre>
+
+<p>ceph-deploy 2.0.1竟然没有prepare子命令, 坑真多。</p>
+
+<p>然后执行</p>
+
+<pre><code class="language-text">ceph-deploy osd create node2 --data /dev/vdc
+</code></pre>
+
+<p>遇到报错</p>
+
+<pre><code class="language-text">ceph_deploy][ERROR ] ExecutableNotFound: Could not locate executable &#39;ceph-volume&#39; make sure it is installed and available on node2
+</code></pre>
+
+<p>这个是因为ceph-Deploy的版本高了，需要卸载高版本，安装低版本(admin节点)：</p>
+
+<p>如下方法也能解决：</p>
+
+<pre><code class="language-text">pip install ceph-deploy==1.5.39
+</code></pre>
+
+<p>最后执行下面命令成功</p>
+
+<pre><code class="language-text">ceph-deploy osd prepare node2:/dev/vdc node3:/dev/vdc
+</code></pre>
+
+<p>这一步主要是为OSD做一些准备工作。</p>
+
+<p>最后，激活 OSD：</p>
+
+<pre><code class="language-text">ceph-deploy osd activate node2:/dev/vdc1 node3:/dev/vdc1
+</code></pre>
+
+<p>最后，类似的方法把node1也加进去，大功告成。</p>
+
+<pre><code class="language-text">[root@node1 my-cluster]# ceph -s
+    cluster 838f41b7-778e-43b1-b16d-99694af1df52
+     health HEALTH_OK
+     monmap e1: 1 mons at {node1=172.66.1.12:6789/0}
+            election epoch 2, quorum 0 node1
+     osdmap e13: 3 osds: 3 up, 3 in
+            flags sortbitwise
+      pgmap v23: 64 pgs, 1 pools, 0 bytes data, 0 objects
+            100 MB used, 134 GB / 134 GB avail
+                  64 active+clean
+</code></pre>
+
+<h2 id="toc_8">扩容操作</h2>
+
+<p>包括增加OSD和Monitor</p>
+
+<h4 id="toc_9">增加Monitor</h4>
+
+<p>执行如下命令在node2上增加monitor</p>
+
+<pre><code class="language-text">ceph-deploy mon add node2
+</code></pre>
+
+<p>出现如下错误</p>
+
+<pre><code class="language-text">[node2][ERROR ] admin_socket: exception getting command descriptions: [Errno 2] No such file or directory
+[node2][ERROR ] admin_socket: exception getting command descriptions: [Errno 2] No such file or directory
+</code></pre>
+
+<h5 id="toc_10">解决方法：</h5>
+
+<p>通过上面日志可知ceph.conf配置文件中缺少public network的配置，在admin节点中，my-cluster目录下的ceph.conf的[global]下添加对应的网址：</p>
+
+<pre><code class="language-text">[global]
+fsid = b8b4aa68-d825-43e9-a60a-781c92fec20e
+mon_initial_members = node1
+mon_host = 192.168.197.154
+auth_cluster_required = cephx
+auth_service_required = cephx
+auth_client_required = cephx
+public network =192.168.197.0/24
+</code></pre>
+
+<p>之后通过执行下面的命令把修改的配置推送至每个节点，否则提示error：</p>
+
+<pre><code class="language-text">ceph-deploy --overwrite-conf config push node1 node2 node3
+</code></pre>
+
+<p>之后可以正常执行monitor添加命令了。</p>
+
+<h4 id="toc_11">OSD扩容</h4>
+
+<p>OSD扩容主要分为两步：</p>
+
+<ul>
+<li>准备OSD, 即执行prepare命令</li>
+</ul>
+
+<pre><code class="language-text">ceph-deploy osd prepare {ceph-node}:{device}
+</code></pre>
+
+<p>例如：</p>
+
+<pre><code class="language-text">ceph-deploy osd prepare node1:/dev/vdc
+</code></pre>
+
+<p>最后，激活 OSD 。</p>
+
+<ul>
+<li>激活OSD, 即执行activate命令</li>
+</ul>
+
+<pre><code class="language-text">ceph-deploy osd activate {ceph-node}:{device}
+</code></pre>
+
+<p>例如：</p>
+
+<pre><code class="language-text">ceph-deploy osd activate node1:/dev/vdc
+</code></pre>
+
+<p>一旦你新加了 OSD ， Ceph 集群就开始重均衡，把归置组迁移到新 OSD 。这时你可以看到归置组状态从 active + clean 变为 active，还有一些降级的对象；迁移完成后又会回到 active + clean 状态。</p>
+
+<h1 id="toc_12">总结</h1>
+
+<p>手动成功部署一个ceph集群，完成了学习ceph的第一步。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[构建docker多架构镜像，混合架构都不是事]]></title>
+    <link href="cxwen.github.io/15944741533001.html"/>
+    <updated>2020-07-11T21:29:13+08:00</updated>
+    <id>cxwen.github.io/15944741533001.html</id>
+    <content type="html"><![CDATA[
+<p>以前一直在想，为什么一个镜像只能在一种架构中使用，有什么办法可以解决多架构的kubernetes集群镜像的问题？经过一段时间的调研，还是找到了解决的方案。</p>
+
+<h3 id="toc_0">什么是多架构集群呢？</h3>
+
+<p>在当前形势下，不少公司选择使用国产服务器，但国产服务器cpu基本上都是小众的架构，比如arm、mips等，而最广泛使用的x86架构的服务器。要引入国产服务器，因为各种现实原因，必然面临着一个kubernetes集群中使用多种架构的服务器的情况。</p>
+
+<p>我一直觉得理想的情况是，kubernetes集群能在各种架构的机器上运行，能在编排层面对应用屏蔽掉底层机器的架构。可以一套编排方案，适用于各种架构的集群。会根据当前调度到的机器的架构，拉取对应架构的镜像。也就是说，我管你最终把我的应用pod运行在哪台机器上，这台机器是啥架构，我啥都不关心，把编排好的文件往kubernetes集群中一丢就完事了。</p>
+
+<p>多架构镜像的构建就是实现这个目的的关键一环。</p>
+
+<h1 id="toc_1">多架构镜像原理</h1>
+
+<p><img src="media/15944741533001/15946012828386.jpg" alt="" style="width:767px;"/><br/>
+docker宣称目标是&quot;Build and Ship any Application Anywhere&quot;，如果不解决多架构镜像问题，这个目标也无从谈起。</p>
+
+<h2 id="toc_2">多架构的实现——manifests</h2>
+
+<p><img src="media/15944741533001/15996510572238.png" alt="" style="width:960px;"/></p>
+
+<p>manifests是什么呢? 咱们从docker的源码入手：</p>
+
+<pre><code class="language-golang">// A ManifestDescriptor references a platform-specific manifest.
+type ManifestDescriptor struct {
+    distribution.Descriptor
+
+    // Platform specifies which platform the manifest pointed to by the
+    // descriptor runs on.
+    Platform PlatformSpec `json:&quot;platform&quot;`
+}
+</code></pre>
+
+<pre><code class="language-golang">// Descriptor describes targeted content. Used in conjunction with a blob
+// store, a descriptor can be used to fetch, store and target any kind of
+// blob. The struct also describes the wire protocol format. Fields should
+// only be added but never changed.
+type Descriptor struct {
+    // MediaType describe the type of the content. All text based formats are
+    // encoded as utf-8.
+    MediaType string `json:&quot;mediaType,omitempty&quot;`
+
+    // Size in bytes of content.
+    Size int64 `json:&quot;size,omitempty&quot;`
+
+    // Digest uniquely identifies the content. A byte stream can be verified
+    // against against this digest.
+    Digest digest.Digest `json:&quot;digest,omitempty&quot;`
+
+    // URLs contains the source URLs of this content.
+    URLs []string `json:&quot;urls,omitempty&quot;`
+
+    // NOTE: Before adding a field here, please ensure that all
+    // other options have been exhausted. Much of the type relationships
+    // depend on the simplicity of this type.
+}
+</code></pre>
+
+<pre><code class="language-golang">// PlatformSpec specifies a platform where a particular image manifest is
+// applicable.
+type PlatformSpec struct {
+    // Architecture field specifies the CPU architecture, for example
+    // `amd64` or `ppc64`.
+    Architecture string `json:&quot;architecture&quot;`
+
+    // OS specifies the operating system, for example `linux` or `windows`.
+    OS string `json:&quot;os&quot;`
+
+    // OSVersion is an optional field specifying the operating system
+    // version, for example `10.0.10586`.
+    OSVersion string `json:&quot;os.version,omitempty&quot;`
+
+    // OSFeatures is an optional field specifying an array of strings,
+    // each listing a required OS feature (for example on Windows `win32k`).
+    OSFeatures []string `json:&quot;os.features,omitempty&quot;`
+
+    // Variant is an optional field specifying a variant of the CPU, for
+    // example `ppc64le` to specify a little-endian version of a PowerPC CPU.
+    Variant string `json:&quot;variant,omitempty&quot;`
+
+    // Features is an optional field specifying an array of strings, each
+    // listing a required CPU feature (for example `sse4` or `aes`).
+    Features []string `json:&quot;features,omitempty&quot;`
+}
+</code></pre>
+
+<p>可以看出manifest其实就是记录镜像的能够运行的cpu架构、操作系统类型、操作系统版本等等信息。multi-arch的镜像，可以看做是多个镜像，只是镜像仓库在存储镜像数据的同时，也会存储上面对应的manifest信息。</p>
+
+<p>一个busybox镜像的manifests：</p>
+
+<pre><code class="language-javascript">cxwen@cxw:~$ docker manifest inspect busybox
+{
+   &quot;schemaVersion&quot;: 2,
+   &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.list.v2+json&quot;,
+   &quot;manifests&quot;: [
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:2ca5e69e244d2da7368f7088ea3ad0653c3ce7aaccd0b8823d11b0d5de956002&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;amd64&quot;,
+            &quot;os&quot;: &quot;linux&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:55dec6dbd4b329ef2bfc2e104ab6ee57ef1a91f15c8bd324650b34756f43ad61&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;arm&quot;,
+            &quot;os&quot;: &quot;linux&quot;,
+            &quot;variant&quot;: &quot;v5&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:8bec2de1c91b986218004f65a7ef40989ac9827e80ed02c7ac5cd18058213ba7&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;arm&quot;,
+            &quot;os&quot;: &quot;linux&quot;,
+            &quot;variant&quot;: &quot;v6&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:2e6dd9846f4022bd771bd7371114d60cf032e15bd160ab6172b776f9fc49812c&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;arm&quot;,
+            &quot;os&quot;: &quot;linux&quot;,
+            &quot;variant&quot;: &quot;v7&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:614f2e7b8fbab8a23bef168e7058739180a7a15d17c583bdfcbdb647d9798079&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;arm64&quot;,
+            &quot;os&quot;: &quot;linux&quot;,
+            &quot;variant&quot;: &quot;v8&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:13786684a2d2c684562fd93652fe803fad2ca9fc596ea793ca67b6bbeb2c4730&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;386&quot;,
+            &quot;os&quot;: &quot;linux&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 527,
+         &quot;digest&quot;: &quot;sha256:1d67a71f84422fa78f03573a44a419d023682b1c6aa1c380c9d84f69cc79e7f6&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;mips64le&quot;,
+            &quot;os&quot;: &quot;linux&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 528,
+         &quot;digest&quot;: &quot;sha256:49c781843a30b2af8fff421e4f2dde9365fb778d5ce11a88991d1ab6056d8f40&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;ppc64le&quot;,
+            &quot;os&quot;: &quot;linux&quot;
+         }
+      },
+      {
+         &quot;mediaType&quot;: &quot;application/vnd.docker.distribution.manifest.v2+json&quot;,
+         &quot;size&quot;: 528,
+         &quot;digest&quot;: &quot;sha256:2ed8bd58e1966fc775f4ba7e97a56ceb1fdd96706779ae8bcb59bc8dbae21be8&quot;,
+         &quot;platform&quot;: {
+            &quot;architecture&quot;: &quot;s390x&quot;,
+            &quot;os&quot;: &quot;linux&quot;
+         }
+      }
+   ]
+}
+</code></pre>
+
+<p>客户端拉取镜像的流程如下, 这里盗用别人画的一张流程图：<br/>
+<img src="media/15944741533001/15996546323792.png" alt="" style="width:322px;"/></p>
+
+<h1 id="toc_3">多架构镜像构建方法</h1>
+
+<p>docker已经提供了构建多架构镜像的命令行工具:</p>
+
+<pre><code class="language-bash">cxwen@cxw:~$ docker manifest --help
+
+Usage:  docker manifest COMMAND
+
+The **docker manifest** command has subcommands for managing image manifests and
+manifest lists. A manifest list allows you to use one name to refer to the same image
+built for multiple architectures.
+
+To see help for a subcommand, use:
+
+    docker manifest CMD --help
+
+For full details on using docker manifest lists, see the registry v2 specification.
+
+Commands:
+  annotate    Add additional information to a local image manifest
+  create      Create a local manifest list for annotating and pushing to a registry
+  inspect     Display an image manifest, or manifest list
+  push        Push a manifest list to a repository
+
+Run &#39;docker manifest COMMAND --help&#39; for more information on a command.
+</code></pre>
+
+<p>需要开启实验特性才能使用</p>
+
+<pre><code class="language-bash">$vim ~/.docker/config.json
+{
+    &quot;experimental&quot;: &quot;enabled&quot;
+}
+</code></pre>
+
+<h3 id="toc_4">步骤</h3>
+
+<p>1、分别为各架构够建相应的镜像，并推送到镜像仓库</p>
+
+<p>2、创建manifest</p>
+
+<pre><code class="language-bash">docker manifest create {多架构镜像名} {amd64架构镜像名} {arm64架构镜像名} {mips64le架构镜像名} ......
+</code></pre>
+
+<p>例如：</p>
+
+<pre><code class="language-bash">docker manifest create xwcheng/kube-proxy:v1.15.9 xwcheng/kube-proxy-amd64:v1.15.9 xwcheng/kube-proxy-arm64:v1.15.9 xwcheng/kube-proxy-mips64le:v1.15.9
+</code></pre>
+
+<p>2、添加对应架构manifest添加annotation属性值</p>
+
+<p>例如：</p>
+
+<pre><code class="language-bash">docker manifest annotate xwcheng/kube-proxy:v1.15.9 xwcheng/kube-proxy-amd64:v1.15.9 --os linux --arch amd64
+</code></pre>
+
+<pre><code class="language-bash">docker manifest annotate xwcheng/kube-proxy:v1.15.9 xwcheng/kube-proxy-arm64:v1.15.9 --os linux --arch arm64 --variant unknown
+</code></pre>
+
+<pre><code class="language-bash">docker manifest annotate xwcheng/kube-proxy:v1.15.9 xwcheng/kube-proxy-mips64le:v1.15.9 --os linux --arch mips64le
+</code></pre>
+
+<p>注意，arm64一定要添加 <code>--variant unknown</code>, 要不会无法拉取。</p>
+
+<p>3、将manifest推送到镜像仓库</p>
+
+<pre><code class="language-bash">docker manifest push xwcheng/kube-proxy:v1.15.9
+</code></pre>
+
+<p>通过这三步，你就可以只使用 xwcheng/kube-proxy:v1.15.9 这一个镜像名在多种架构的机器上愉快的跑起来了。</p>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[kubernetes CRD 开发入门指南]]></title>
